@@ -23,6 +23,9 @@ namespace ScrapeIt
             }
         }
 
+        /// <summary>
+        /// Downloads the content for a given blog page on a Weebly site
+        /// </summary>
         private static void DownloadFromUrl()
         {
             var webClient = new WebClient();
@@ -49,7 +52,7 @@ namespace ScrapeIt
         // Full path:       http://tyannsheldonrouw.weebly.com/uploads/1/6/0/5/16055074/mcrib1_orig.jpg
 
         /// <summary>
-        /// Download all content from the archives pages for a Weebly site
+        /// Download all content from the blog archives pages for a Weebly site
         /// </summary>
         private static void DownloadArchivesFromWeebly()
         {
@@ -93,6 +96,12 @@ namespace ScrapeIt
             }
         }
 
+        /// <summary>
+        /// Creates an HTML file for the given content, using the given name
+        /// Folder name is C:\Temp\WebContent, so make sure you have that folder created
+        /// </summary>
+        /// <param name="content">The contents of the file to save</param>
+        /// <param name="fileName">The name of the file (without an extension)</param>
         private static void SaveTextToFile(string content, string fileName)
         {
             if (string.IsNullOrWhiteSpace(content)) return;
@@ -102,7 +111,6 @@ namespace ScrapeIt
             TextWriter oldOut = Console.Out;
             try
             {
-                //var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"./{fileName}.html");
                 var path = $"C:\\Temp\\WebContent\\{fileName}.html";
 
                 ostrm = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
@@ -121,6 +129,12 @@ namespace ScrapeIt
             ostrm.Close();
         }
 
+        /// <summary>
+        /// Weebly blog content - look for the "blogTable".
+        /// Then remove content above this element and after the closing table tag
+        /// </summary>
+        /// <param name="content">Weebly blog page content</param>
+        /// <returns>Just the blog entries for the page</returns>
         private static string CleanContent(string content)
         {
             var start = "id=\"blogTable\"";
