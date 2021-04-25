@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
+using HtmlAgilityPack;
 
 namespace ScrapeIt
 {
@@ -43,9 +45,9 @@ namespace ScrapeIt
                     var fileName = Console.ReadLine();
                     var content = webClient.DownloadString(url);
 
-                    SaveTextToFile(content, fileName);
+                    content = DownloadImagesInContent(content, url);
 
-                    DownloadImagesInContent(content, url);
+                    SaveTextToFile(content, fileName);
                 }
             } while (!string.IsNullOrWhiteSpace(url));
         }
@@ -90,6 +92,8 @@ namespace ScrapeIt
                     Console.WriteLine(fileName);
                     string url = $"{weeblyArchiveUrl}{formattedMonth}-{year}";
                     var content = webClient.DownloadString(url);
+
+                    content = DownloadImagesInContent(content, url);
                     SaveTextToFile(content, fileName);
                 }
             }
@@ -158,9 +162,45 @@ namespace ScrapeIt
         /// </summary>
         /// <param name="content">Blog page content being downloaded</param>
         /// <param name="siteUrl">The URL of the website</param>
-        private static void DownloadImagesInContent(string content, string siteUrl)
+        private static string DownloadImagesInContent(string content, string siteUrl)
         {
-            if (string.IsNullOrWhiteSpace(content)) return;
+            if (string.IsNullOrWhiteSpace(content)) return "";
+
+            // Images - download and store them
+            // Based folder:    http://sitename.weebly.com/
+            // Image:           uploads/1/6/0/5/16055074/mcrib1_orig.jpg
+            // Full path:       http://sitename.weebly.com/uploads/1/6/0/5/16055074/mcrib1_orig.jpg
+
+            HtmlDocument document = new HtmlDocument();
+            document.LoadHtml(content);
+            document.DocumentNode.Descendants("img")
+                .Where(e =>
+                {
+                    string src = e.GetAttributeValue("src", null) ?? "";
+                    return !string.IsNullOrEmpty(src);
+                })
+                .ToList()
+                .ForEach(x =>
+                {
+                    string currentSrcValue = x.GetAttributeValue("src", null);
+                    Console.WriteLine(currentSrcValue);
+
+                    // Remove all of the subfolders (/) and replace with dashes
+                    var updatedSrcValue = currentSrcValue.Replace("/uploads/", "").Replace("/", "-");
+                    DownloadImage(currentSrcValue, updatedSrcValue, siteUrl);
+
+                    // Update the link in the HTML - want to keep the ref to uploads, but remove the initial /
+                    var updatedSrcLink = currentSrcValue.Replace("/uploads/", "^^^").Replace("/", "-");
+                    updatedSrcLink = updatedSrcLink.Replace("^^^", "uploads/");
+                    content = content.Replace(currentSrcValue, updatedSrcLink);
+                });
+
+            return content;
+        }
+
+        private static void DownloadImage(string imageUrl, string fileName, string siteUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl)) return;
 
             var imagesFolder = $"{localFolder}/uploads";
             if (!Directory.Exists(imagesFolder))
@@ -168,23 +208,14 @@ namespace ScrapeIt
                 Directory.CreateDirectory(imagesFolder);
             }
 
-            // Images - download and store them
-            // Based folder:    http://sitename.weebly.com/
-            // Image:           uploads/1/6/0/5/16055074/mcrib1_orig.jpg
-            // Full path:       http://sitename.weebly.com/uploads/1/6/0/5/16055074/mcrib1_orig.jpg
+            var uri = new Uri(siteUrl);
+            string host = $"{uri.Scheme}://{uri.Host}";
+
+            var fullImageUrl = host + imageUrl;
+            Console.WriteLine(fullImageUrl);
 
             var webClient = new WebClient();
-
-            var uri = new Uri(siteUrl);
-            string host = uri.AbsoluteUri;
-            if (!host.EndsWith("/"))
-            {
-                host += "/";
-            }
-
-            var imageUrl = $"{host}uploads/1/6/0/5/16055074/familypics-8_orig.jpg";
-
-            webClient.DownloadFileAsync(new Uri(imageUrl), $"{imagesFolder}/test.jpg");
+            webClient.DownloadFileAsync(new Uri(fullImageUrl), $"{imagesFolder}/{fileName}");
         }
     }
 }
