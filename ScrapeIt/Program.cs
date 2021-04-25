@@ -6,6 +6,8 @@ namespace ScrapeIt
 {
     internal class Program
     {
+        private static string localFolder = "C:\\Temp\\WebContent\\";
+
         private static void Main(string[] args)
         {
             Console.WriteLine("Enter option:");
@@ -42,14 +44,11 @@ namespace ScrapeIt
                     var content = webClient.DownloadString(url);
 
                     SaveTextToFile(content, fileName);
+
+                    DownloadImagesInContent(content, url);
                 }
             } while (!string.IsNullOrWhiteSpace(url));
         }
-
-        // Images - can we download and store them?
-        // Based folder:    http://tyannsheldonrouw.weebly.com/
-        // Image:           uploads/1/6/0/5/16055074/mcrib1_orig.jpg
-        // Full path:       http://tyannsheldonrouw.weebly.com/uploads/1/6/0/5/16055074/mcrib1_orig.jpg
 
         /// <summary>
         /// Download all content from the blog archives pages for a Weebly site
@@ -111,7 +110,7 @@ namespace ScrapeIt
             TextWriter oldOut = Console.Out;
             try
             {
-                var path = $"C:\\Temp\\WebContent\\{fileName}.html";
+                var path = $"{localFolder}{fileName}.html";
 
                 ostrm = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
                 writer = new StreamWriter(ostrm);
@@ -152,6 +151,40 @@ namespace ScrapeIt
             }
 
             return content;
+        }
+
+        /// <summary>
+        /// Find all IMG tags in the content and attempt to download and save the images
+        /// </summary>
+        /// <param name="content">Blog page content being downloaded</param>
+        /// <param name="siteUrl">The URL of the website</param>
+        private static void DownloadImagesInContent(string content, string siteUrl)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return;
+
+            var imagesFolder = $"{localFolder}/uploads";
+            if (!Directory.Exists(imagesFolder))
+            {
+                Directory.CreateDirectory(imagesFolder);
+            }
+
+            // Images - download and store them
+            // Based folder:    http://sitename.weebly.com/
+            // Image:           uploads/1/6/0/5/16055074/mcrib1_orig.jpg
+            // Full path:       http://sitename.weebly.com/uploads/1/6/0/5/16055074/mcrib1_orig.jpg
+
+            var webClient = new WebClient();
+
+            var uri = new Uri(siteUrl);
+            string host = uri.AbsoluteUri;
+            if (!host.EndsWith("/"))
+            {
+                host += "/";
+            }
+
+            var imageUrl = $"{host}uploads/1/6/0/5/16055074/familypics-8_orig.jpg";
+
+            webClient.DownloadFileAsync(new Uri(imageUrl), $"{imagesFolder}/test.jpg");
         }
     }
 }
